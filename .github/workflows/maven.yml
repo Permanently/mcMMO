@@ -49,4 +49,13 @@ jobs:
 
     # 4. Build via Maven 
     - name: Build via Maven
-      run: mvn verify -B --file pom.xml -DdisableXmlReport=true
+      run: |
+        mvn verify -B --file pom.xml -DdisableXmlReport=true
+        mvn clean install
+
+    # An artifact is generated in a compressed file according to each JDK build version.
+    - name: Upload mcMMO
+      uses: actions/upload-artifact@v3
+      with:
+        name: mcMMO-build
+        path: target/mcMMO.jar
