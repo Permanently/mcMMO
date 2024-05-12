@@ -2,7 +2,6 @@ package com.gmail.nossr50.config.skills.alchemy;
 
 import com.gmail.nossr50.config.LegacyConfigLoader;
 import com.gmail.nossr50.datatypes.skills.alchemy.AlchemyPotion;
-import com.gmail.nossr50.locale.LocaleLoader;
 import com.gmail.nossr50.mcMMO;
 import com.gmail.nossr50.util.ItemUtils;
 import com.gmail.nossr50.util.PotionUtil;
@@ -15,14 +14,16 @@ import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.potion.PotionType;
-import org.codehaus.plexus.util.StringUtils;
 import org.jetbrains.annotations.VisibleForTesting;
 
 import java.io.File;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-import static com.gmail.nossr50.util.PotionUtil.*;
-import static com.gmail.nossr50.util.text.StringUtils.convertKeyToName;
+import static com.gmail.nossr50.util.ItemUtils.setItemName;
+import static com.gmail.nossr50.util.PotionUtil.matchPotionType;
 
 public class PotionConfig extends LegacyConfigLoader {
 
@@ -194,10 +195,10 @@ public class PotionConfig extends LegacyConfigLoader {
             PotionUtil.setBasePotionType(potionMeta, potionType, extended, upgraded);
 
 //            // Use the name of the potion to indicate upgrade status if not set in PotionData
-//            if(convertPotionConfigName(key).toUpperCase().contains("STRONG"))
+//            if (convertPotionConfigName(key).toUpperCase().contains("STRONG"))
 //                upgraded = true;
 //
-//            if(convertPotionConfigName(key).toUpperCase().contains("LONG"))
+//            if (convertPotionConfigName(key).toUpperCase().contains("LONG"))
 //                extended = true;
 
             List<String> lore = new ArrayList<>();
@@ -257,19 +258,15 @@ public class PotionConfig extends LegacyConfigLoader {
     }
 
     private void setPotionDisplayName(ConfigurationSection section, PotionMeta potionMeta) {
-        String configuredName = section.getString("Name", null);
-        if (configuredName != null) {
-            potionMeta.setItemName(configuredName);
+        // If a potion doesn't have any custom effects, there is no reason to override the vanilla name
+        if (potionMeta.getCustomEffects().isEmpty()) {
+            return;
         }
-//
-//        // Potion is water, but has effects
-//        if (isPotionTypeWater(potionMeta)
-//                && (PotionUtil.hasBasePotionEffects(potionMeta) || !potionMeta.getCustomEffects().isEmpty())) {
-//            // If we don't set a name for these potions, they will simply be called "Water Potion"
-//            final String name = section.getName().toUpperCase().replace("_", " ");
-//            potionMeta.setDisplayName(name);
-//            System.out.println("DEBUG: Renaming potion to " + name);
-//        }
+
+        final String configuredName = section.getString("Name", null);
+        if (configuredName != null) {
+            setItemName(potionMeta, configuredName);
+        }
     }
 
     /**
