@@ -1,4 +1,6 @@
 Version 2.2.013
+    Added Breeze to experience.yml
+    Added Bogged to experience.yml
     (Locale) Updates to zh_TW (thanks chunkiuu)
     (Locale) Updates to zh_CN (thanks haha44444)
     Modified the RNG for dropping non-ore blocks from Blast Mining to yield about 50% of what was destroyed
@@ -8,8 +10,11 @@ Version 2.2.013
     (API) Added new methods to com.gmail.nossr50.util.blockmeta.UserBlockTracker for easier readability
     (API) Deprecated many poorly named methods in UserBlockTracker (see notes)
     (Codebase) Cleaned up and organized unit tests relating to UserBlockTracker
+    Added missing entries for Tridents/Xbows/Maces to config.yml (see notes)
 
     NOTES:
+    Some settings such as Hardcore.Death_Stat_Loss.Enabled were missing entries for the new skills, I have added them to the default config.
+    They should be added to your config upon start up. mcMMO will use default values when a config entry is not found in most cases.
     Not planning to delete the deprecated methods in UserBlockTracker anytime soon, as nothing has really changed other than the names
 
 Version 2.2.012
