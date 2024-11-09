@@ -1,3 +1,9 @@
+Version 2.2.027
+    Fixed concurrency issue with Folia regarding locale strings
+
+Version 2.2.026
+    Fixed NullPointerException on ChunkUnloadEvent
+
 Version 2.2.025
     Fixed NullPointerException spam when processing XP for child skills
 
