@@ -31,7 +31,6 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.*;
-import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.SkullMeta;
@@ -56,9 +55,17 @@ public class FishingManager extends SkillManager {
     private Item fishingCatch;
     private Location hookLocation;
     private int fishCaughtCounter = 1;
+    private final int masterAnglerMinWaitLowerBound;
+    private final int masterAnglerMaxWaitLowerBound;
 
     public FishingManager(McMMOPlayer mcMMOPlayer) {
         super(mcMMOPlayer, PrimarySkillType.FISHING);
+        //Ticks for minWait and maxWait never go below this value
+        int bonusCapMin = mcMMO.p.getAdvancedConfig().getFishingReductionMinWaitCap();
+        int bonusCapMax = mcMMO.p.getAdvancedConfig().getFishingReductionMaxWaitCap();
+
+        this.masterAnglerMinWaitLowerBound = Math.max(bonusCapMin, 0);
+        this.masterAnglerMaxWaitLowerBound = Math.max(bonusCapMax, masterAnglerMinWaitLowerBound + 40);
     }
 
     public boolean canShake(Entity target) {
@@ -254,13 +261,6 @@ public class FishingManager extends SkillManager {
      * @param fishHook target fish hook
      */
     public void processMasterAngler(@NotNull FishHook fishHook, int lureLevel) {
-        McMMOPlayerMasterAnglerEvent event = new McMMOPlayerMasterAnglerEvent(mmoPlayer);
-        mcMMO.p.getServer().getPluginManager().callEvent(event);
-
-        if (event.isCancelled()) {
-            return;
-        }
-
         MasterAnglerCompatibilityLayer masterAnglerCompatibilityLayer = (MasterAnglerCompatibilityLayer) mcMMO.getCompatibilityManager().getMasterAnglerCompatibilityLayer();
 
         if (masterAnglerCompatibilityLayer != null) {
@@ -280,12 +280,8 @@ public class FishingManager extends SkillManager {
             int minWaitReduction = getMasterAnglerTickMinWaitReduction(masterAnglerRank, boatBonus);
             int maxWaitReduction = getMasterAnglerTickMaxWaitReduction(masterAnglerRank, boatBonus, convertedLureBonus);
 
-            //Ticks for minWait and maxWait never go below this value
-            int bonusCapMin = mcMMO.p.getAdvancedConfig().getFishingReductionMinWaitCap();
-            int bonusCapMax = mcMMO.p.getAdvancedConfig().getFishingReductionMaxWaitCap();
-
-            int reducedMinWaitTime = getReducedTicks(minWaitTicks, minWaitReduction, bonusCapMin);
-            int reducedMaxWaitTime = getReducedTicks(maxWaitTicks, maxWaitReduction, bonusCapMax);
+            int reducedMinWaitTime = getReducedTicks(minWaitTicks, minWaitReduction, masterAnglerMinWaitLowerBound);
+            int reducedMaxWaitTime = getReducedTicks(maxWaitTicks, maxWaitReduction, masterAnglerMaxWaitLowerBound);
 
             boolean badValuesFix = false;
 
@@ -295,11 +291,23 @@ public class FishingManager extends SkillManager {
                 badValuesFix = true;
             }
 
+            final McMMOPlayerMasterAnglerEvent event =
+                    new McMMOPlayerMasterAnglerEvent(mmoPlayer, reducedMinWaitTime, reducedMaxWaitTime, this);
+            mcMMO.p.getServer().getPluginManager().callEvent(event);
+
+            if (event.isCancelled()) {
+                return;
+            }
+
+            reducedMaxWaitTime = event.getReducedMaxWaitTime();
+            reducedMinWaitTime = event.getReducedMinWaitTime();
+
             if (mmoPlayer.isDebugMode()) {
                 mmoPlayer.getPlayer().sendMessage(ChatColor.GOLD + "Master Angler Debug");
 
                 if (badValuesFix) {
-                    mmoPlayer.getPlayer().sendMessage(ChatColor.RED + "Bad values were applied and corrected, check your configs, max wait should never be lower than min wait.");
+                    mmoPlayer.getPlayer().sendMessage(ChatColor.RED + "Bad values were applied and corrected," +
+                            " check your configs, minWaitLowerBound wait should never be lower than min wait.");
                 }
 
                 mmoPlayer.getPlayer().sendMessage("ALLOW STACK WITH LURE: " + masterAnglerCompatibilityLayer.getApplyLure(fishHook));
@@ -326,8 +334,8 @@ public class FishingManager extends SkillManager {
                 mmoPlayer.getPlayer().sendMessage("");
 
                 mmoPlayer.getPlayer().sendMessage(ChatColor.DARK_AQUA + "Caps / Limits (edit in advanced.yml)");
-                mmoPlayer.getPlayer().sendMessage("Lowest possible max wait ticks " + bonusCapMax);
-                mmoPlayer.getPlayer().sendMessage("Lowest possible min wait ticks " + bonusCapMin);
+                mmoPlayer.getPlayer().sendMessage("Lowest possible minWaitLowerBound wait ticks " + masterAnglerMinWaitLowerBound);
+                mmoPlayer.getPlayer().sendMessage("Lowest possible min wait ticks " + masterAnglerMaxWaitLowerBound);
             }
 
             masterAnglerCompatibilityLayer.setMaxWaitTime(fishHook, reducedMaxWaitTime);
@@ -563,7 +571,8 @@ public class FishingManager extends SkillManager {
             }
 
             ItemUtils.spawnItem(getPlayer(), target.getLocation(), drop, ItemSpawnReason.FISHING_SHAKE_TREASURE);
-            CombatUtils.dealDamage(target, Math.min(Math.max(target.getMaxHealth() / 4, 1), 10), EntityDamageEvent.DamageCause.CUSTOM, getPlayer()); // Make it so you can shake a mob no more than 4 times.
+            // Make it so you can shake a mob no more than 4 times.
+            CombatUtils.dealDamage(target, Math.min(Math.max(target.getMaxHealth() / 4, 1), 10), getPlayer());
             applyXpGain(ExperienceConfig.getInstance().getFishingShakeXP(), XPGainReason.PVE);
         }
     }
@@ -722,5 +731,13 @@ public class FishingManager extends SkillManager {
      */
     private int getVanillaXpMultiplier() {
         return getVanillaXPBoostModifier();
+    }
+
+    public int getMasterAnglerMinWaitLowerBound() {
+        return masterAnglerMinWaitLowerBound;
+    }
+
+    public int getMasterAnglerMaxWaitLowerBound() {
+        return masterAnglerMaxWaitLowerBound;
     }
 }
